@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Somatic Variant Curation — Molecular Pathology</title>
+<style>
+  :root {
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --surface2: #f2f1ee;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1a1a18;
+    --text2: #5a5a56;
+    --text3: #9a9a96;
+    --blue50: #E6F1FB; --blue800: #0C447C; --blue600: #185FA5;
+    --green50: #EAF3DE; --green800: #27500A; --green600: #3B6D11;
+    --amber50: #FAEEDA; --amber800: #633806; --amber600: #854F0B;
+    --gray50: #F1EFE8; --gray800: #444441; --gray600: #5F5E5A;
+    --red50: #FCEBEB; --red800: #791F1F; --red600: #A32D2D;
+    --coral50: #FAECE7; --coral800: #712B13; --coral600: #993C1D;
+    --purple50: #EEEDFE; --purple800: #3C3489; --purple600: #534AB7;
+    --teal50: #E1F5EE; --teal800: #085041; --teal600: #0F6E56;
+    --radius: 8px; --radius-lg: 12px;
+    --font: 'Georgia', 'Times New Roman', serif;
+    --font-sans: -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Consolas', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18; --surface: #242422; --surface2: #2e2e2c;
+      --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.20);
+      --text: #f0efe8; --text2: #a8a8a0; --text3: #686860;
+      --blue50:#042C53; --blue800:#B5D4F4; --blue600:#85B7EB;
+      --green50:#173404; --green800:#C0DD97; --green600:#97C459;
+      --amber50:#412402; --amber800:#FAC775; --amber600:#EF9F27;
+      --gray50:#2C2C2A; --gray800:#D3D1C7; --gray600:#B4B2A9;
+      --red50:#501313; --red800:#F7C1C1; --red600:#F09595;
+      --coral50:#4A1B0C; --coral800:#F5C4B3; --coral600:#F0997B;
+      --purple50:#26215C; --purple800:#CECBF6; --purple600:#AFA9EC;
+      --teal50:#04342C; --teal800:#9FE1CB; --teal600:#5DCAA5;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+  
+  /* Layout */
+  .app-shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+  .sidebar { background: var(--surface); border-right: 0.5px solid var(--border2); padding: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+  .main { padding: 2rem; overflow-y: auto; }
+
+  /* Sidebar */
+  .sidebar-header { padding: 1.5rem 1.25rem 1rem; border-bottom: 0.5px solid var(--border); }
+  .sidebar-header .logo { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-bottom: 4px; }
+  .sidebar-header h1 { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.3; font-family: var(--font-sans); }
+  .sidebar-header .role-badge { display: inline-block; margin-top: 6px; font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--purple50); color: var(--purple800); font-weight: 500; }
+  .nav-section { padding: 1rem 1rem 0.5rem; }
+  .nav-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 6px; padding: 0 0.25rem; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius); cursor: pointer; font-size: 13px; color: var(--text2); transition: background 0.15s, color 0.15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; font-family: var(--font-sans); }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--blue50); color: var(--blue800); font-weight: 500; }
+  .nav-item .nav-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .nav-item .nav-count { margin-left: auto; font-size: 10px; background: var(--surface2); color: var(--text3); padding: 1px 6px; border-radius: 10px; }
+  .sidebar-footer { margin-top: auto; padding: 1rem 1.25rem; border-top: 0.5px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text3); line-height: 1.5; }
+
+  /* Quick stats in sidebar */
+  .quick-stat { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--surface2); border-radius: var(--radius); margin-bottom: 4px; font-size: 12px; }
+  .quick-stat .qs-label { color: var(--text2); }
+  .quick-stat .qs-val { font-weight: 600; color: var(--text); }
+
+  /* Main content */
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .page-header { margin-bottom: 1.5rem; }
+  .page-header h2 { font-size: 20px; font-weight: 600; font-family: var(--font-sans); }
+  .page-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+  .card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 1rem; }
+
+  /* Grid layouts */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+
+  /* Form elements */
+  .field { margin-bottom: 1rem; }
+  .field:last-child { margin-bottom: 0; }
+  label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 5px; font-weight: 500; }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%; padding: 8px 10px; font-size: 13px;
+    border: 0.5px solid var(--border2); border-radius: var(--radius);
+    background: var(--surface); color: var(--text); font-family: var(--font-sans);
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue600); box-shadow: 0 0 0 3px rgba(23,95,165,0.1); }
+  textarea { min-height: 64px; resize: vertical; }
+  select { cursor: pointer; }
+
+  /* Buttons */
+  .btn { padding: 8px 16px; font-size: 13px; border: 0.5px solid var(--border2); border-radius: var(--radius); cursor: pointer; background: transparent; color: var(--text); font-family: var(--font-sans); font-weight: 500; transition: background 0.15s; }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-group { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+  .badge-tier1 { background: var(--blue50); color: var(--blue800); }
+  .badge-tier2 { background: var(--green50); color: var(--green800); }
+  .badge-tier3 { background: var(--amber50); color: var(--amber800); }
+  .badge-tier4 { background: var(--gray50); color: var(--gray800); }
+  .badge-oncogenic { background: var(--red50); color: var(--red800); }
+  .badge-likely-onco { background: var(--coral50); color: var(--coral800); }
+  .badge-vus { background: var(--amber50); color: var(--amber800); }
+  .badge-likely-ben { background: var(--green50); color: var(--green800); }
+  .badge-benign { background: var(--teal50); color: var(--teal800); }
+  .badge-path { background: var(--red50); color: var(--red800); }
+  .badge-favorable { background: var(--green50); color: var(--green800); }
+  .badge-intermediate { background: var(--amber50); color: var(--amber800); }
+  .badge-adverse { background: var(--red50); color: var(--red800); }
+
+  /* Alerts */
+  .alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 8px; border-left: 3px solid; }
+  .alert-info { background: var(--blue50); color: var(--blue800); border-color: var(--blue600); }
+  .alert-success { background: var(--green50); color: var(--green800); border-color: var(--green600); }
+  .alert-warning { background: var(--amber50); color: var(--amber800); border-color: var(--amber600); }
+  .alert-danger { background: var(--red50); color: var(--red800); border-color: var(--red600); }
+
+  /* Criteria list */
+  .criteria-list { list-style: none; }
+  .criteria-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .criteria-list li:last-child { border-bottom: none; }
+  .crit-icon { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+  .crit-met { background: var(--green50); color: var(--green800); }
+  .crit-unmet { background: var(--gray50); color: var(--text3); }
+  .crit-label { flex: 1; color: var(--text2); }
+  .crit-label.met { color: var(--text); }
+  .strength-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
+  .st-verystrong { background: var(--red50); color: var(--red800); }
+  .st-strong { background: var(--coral50); color: var(--coral800); }
+  .st-moderate { background: var(--amber50); color: var(--amber800); }
+  .st-supporting { background: var(--blue50); color: var(--blue800); }
+  .st-standalone { background: var(--purple50); color: var(--purple800); }
+  .st-benign { background: var(--green50); color: var(--green800); }
+
+  /* Progress bar */
+  .prog-wrap { margin: 8px 0 16px; }
+  .prog-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 5px; }
+  .prog-bar { height: 5px; border-radius: 3px; background: var(--surface2); overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+  /* Info grid */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+  .info-item .lbl { font-size: 11px; color: var(--text3); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .info-item .val { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  /* Evidence row */
+  .ev-row { display: flex; align-items: start; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .ev-row:last-child { border-bottom: none; }
+  .ev-code { font-family: var(--font-mono); font-size: 11px; background: var(--surface2); padding: 2px 7px; border-radius: 4px; color: var(--text2); white-space: nowrap; margin-top: 1px; }
+  .ev-label { flex: 1; font-size: 13px; color: var(--text2); }
+
+  /* Who tags */
+  .who-tag { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; margin: 3px; background: var(--surface2); border: 0.5px solid var(--border); color: var(--text2); font-weight: 500; }
+  .who-tag.defining { background: var(--blue50); color: var(--blue800); border-color: var(--blue600); }
+
+  /* Metric card */
+  .metric-card { background: var(--surface2); border-radius: var(--radius); padding: 1rem; }
+  .metric-card .mc-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .metric-card .mc-val { font-size: 22px; font-weight: 600; color: var(--text); }
+
+  /* Report output */
+  .report-text { font-family: var(--font); font-size: 14px; line-height: 1.8; color: var(--text); background: var(--surface2); border-radius: var(--radius); padding: 1.25rem 1.5rem; border-left: 3px solid var(--border2); }
+  .report-text p { margin-bottom: 0.75rem; }
+  .report-text p:last-child { margin-bottom: 0; }
+
+  /* Gene chip quick select */
+  .gene-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .gene-chip { font-size: 12px; padding: 4px 10px; border-radius: 4px; background: var(--surface2); border: 0.5px solid var(--border); color: var(--text2); cursor: pointer; font-family: var(--font-mono); font-weight: 500; transition: all 0.15s; }
+  .gene-chip:hover { background: var(--blue50); color: var(--blue800); border-color: var(--blue600); }
+  .gene-chip.selected { background: var(--blue50); color: var(--blue800); border-color: var(--blue600); }
+
+  /* Divider */
+  hr { border: none; border-top: 0.5px solid var(--border); margin: 1rem 0; }
+
+  /* Print */
+  @media print {
+    .sidebar { display: none; }
+    .app-shell { grid-template-columns: 1fr; }
+    .btn, .gene-chips { display: none; }
+    .panel { display: block !important; }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .app-shell { grid-template-columns: 1fr; }
+    .sidebar { position: relative; height: auto; }
+    .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
+    .main { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">Hematologic Malignancy NGS</div>
+      <h1>Variant Curation Tool</h1>
+      <span class="role-badge">Molecular Pathologist</span>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Workflow</div>
+      <button class="nav-item active" onclick="showPanel('input')">
+        <span class="nav-icon">①</span> Variant input
+      </button>
+      <button class="nav-item" onclick="showPanel('amp')">
+        <span class="nav-icon">②</span> AMP/ASCO/CAP tiers
+      </button>
+      <button class="nav-item" onclick="showPanel('onco')">
+        <span class="nav-icon">③</span> Oncogenicity (VICC)
+      </button>
+      <button class="nav-item" onclick="showPanel('who')">
+        <span class="nav-icon">④</span> WHO 2022 context
+      </button>
+      <button class="nav-item" onclick="showPanel('report')">
+        <span class="nav-icon">⑤</span> Report &amp; sign-out
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Reference panels</div>
+      <button class="nav-item" onclick="showPanel('ref_aml')">
+        <span class="nav-icon">◈</span> AML hotspots
+      </button>
+      <button class="nav-item" onclick="showPanel('ref_mds')">
+        <span class="nav-icon">◈</span> MDS hotspots
+      </button>
+      <button class="nav-item" onclick="showPanel('ref_lymph')">
+        <span class="nav-icon">◈</span> Lymphoid hotspots
+      </button>
+      <button class="nav-item" onclick="showPanel('ref_mpn')">
+        <span class="nav-icon">◈</span> MPN / CML hotspots
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Current variant</div>
+      <div class="quick-stat"><span class="qs-label">Gene</span><span class="qs-val" id="qs-gene">—</span></div>
+      <div class="quick-stat"><span class="qs-label">VAF</span><span class="qs-val" id="qs-vaf">—</span></div>
+      <div class="quick-stat"><span class="qs-label">AMP tier</span><span class="qs-val" id="qs-tier">—</span></div>
+      <div class="quick-stat"><span class="qs-label">Oncogenicity</span><span class="qs-val" id="qs-onco">—</span></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <p>AMP/ASCO/CAP 2017 · ClinGen/CGC/VICC 2022 · WHO Classification 2022 · ELN 2022 · NCCN Hematology</p>
+      <p style="margin-top:6px; color: var(--text3);">For clinical use. Always correlate with morphology, immunophenotype, and cytogenetics.</p>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ── VARIANT INPUT ── -->
+    <div id="panel-input" class="panel active">
+      <div class="page-header">
+        <h2>Variant input</h2>
+        <p>Enter all available variant and clinical data for classification</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Variant identification</div>
+        <div class="field">
+          <label>Quick gene select (broad hematologic panel)</label>
+          <div class="gene-chips">
+            <span class="gene-chip" onclick="setGene('FLT3')">FLT3</span>
+            <span class="gene-chip" onclick="setGene('NPM1')">NPM1</span>
+            <span class="gene-chip" onclick="setGene('IDH1')">IDH1</span>
+            <span class="gene-chip" onclick="setGene('IDH2')">IDH2</span>
+            <span class="gene-chip" onclick="setGene('DNMT3A')">DNMT3A</span>
+            <span class="gene-chip" onclick="setGene('TET2')">TET2</span>
+            <span class="gene-chip" onclick="setGene('RUNX1')">RUNX1</span>
+            <span class="gene-chip" onclick="setGene('TP53')">TP53</span>
+            <span class="gene-chip" onclick="setGene('ASXL1')">ASXL1</span>
+            <span class="gene-chip" onclick="setGene('SF3B1')">SF3B1</span>
+            <span class="gene-chip" onclick="setGene('SRSF2')">SRSF2</span>
+            <span class="gene-chip" onclick="setGene('EZH2')">EZH2</span>
+            <span class="gene-chip" onclick="setGene('STAG2')">STAG2</span>
+            <span class="gene-chip" onclick="setGene('KRAS')">KRAS</span>
+            <span class="gene-chip" onclick="setGene('NRAS')">NRAS</span>
+            <span class="gene-chip" onclick="setGene('KIT')">KIT</span>
+            <span class="gene-chip" onclick="setGene('JAK2')">JAK2</span>
+            <span class="gene-chip" onclick="setGene('CALR')">CALR</span>
+            <span class="gene-chip" onclick="setGene('MPL')">MPL</span>
+            <span class="gene-chip" onclick="setGene('BCR')">BCR</span>
+            <span class="gene-chip" onclick="setGene('NOTCH1')">NOTCH1</span>
+            <span class="gene-chip" onclick="setGene('ATM')">ATM</span>
+            <span class="gene-chip" onclick="setGene('IGHV')">IGHV</span>
+            <span class="gene-chip" onclick="setGene('MYC')">MYC</span>
+            <span class="gene-chip" onclick="setGene('BCL2')">BCL2</span>
+            <span class="gene-chip" onclick="setGene('BRAF')">BRAF</span>
+            <span class="gene-chip" onclick="setGene('CBFB')">CBFB</span>
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Gene *</label><input type="text" id="gene" placeholder="e.g. FLT3" oninput="updateAll()"></div>
+          <div class="field"><label>HGVSc</label><input type="text" id="hgvsc" placeholder="e.g. c.2503G>T" oninput="updateAll()"></div>
+          <div class="field"><label>HGVSp / protein change</label><input type="text" id="hgvsp" placeholder="e.g. p.Asp835Tyr" oninput="updateAll()"></div>
+        </div>
+        <div class="grid3">
+          <div class="field">
+            <label>Variant type *</label>
+            <select id="vtype" onchange="updateAll()">
+              <option value="">— Select type —</option>
+              <optgroup label="SNV / indel">
+                <option>SNV / missense</option>
+                <option>Nonsense / stop-gain</option>
+                <option>Frameshift indel</option>
+                <option>Splice site</option>
+                <option>In-frame indel</option>
+                <option>Synonymous / intronic</option>
+              </optgroup>
+              <optgroup label="Specific entities">
+                <option>FLT3-ITD</option>
+                <option>NPM1 frameshift (type A-D)</option>
+                <option>CALR frameshift (type 1/2)</option>
+              </optgroup>
+              <optgroup label="Structural">
+                <option>Gene fusion / translocation</option>
+                <option>Copy number gain / amplification</option>
+                <option>Copy number loss / deletion</option>
+                <option>Loss of heterozygosity (LOH)</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field"><label>VAF (%)</label><input type="number" id="vaf" placeholder="e.g. 45.2" step="0.1" min="0" max="100" oninput="updateAll()"></div>
+          <div class="field"><label>Read depth (×)</label><input type="number" id="depth" placeholder="e.g. 850" oninput="updateAll()"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Chromosome / cytoband</label><input type="text" id="cyto" placeholder="e.g. 13q12.2" oninput="updateAll()"></div>
+          <div class="field"><label>FLT3-ITD allelic ratio (if applicable)</label><input type="text" id="itd_ar" placeholder="e.g. 0.47 (low <0.5)" oninput="updateAll()"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Clinical context</div>
+        <div class="grid2">
+          <div class="field">
+            <label>WHO 2022 diagnosis *</label>
+            <select id="dx" onchange="updateAll()">
+              <option value="">— Select diagnosis —</option>
+              <optgroup label="AML / MDS">
+                <option>AML, NOS</option>
+                <option>AML with NPM1 mutation</option>
+                <option>AML with FLT3-ITD</option>
+                <option>AML with RUNX1-RUNX1T1</option>
+                <option>AML with CBFB-MYH11</option>
+                <option>AML with TP53 (biallelic)</option>
+                <option>AML with ASXL1/SRSF2/STAG2 (MR-AML)</option>
+                <option>MDS, low risk (MDS-LR)</option>
+                <option>MDS with excess blasts (MDS-EB)</option>
+                <option>MDS/AML</option>
+                <option>Therapy-related AML / MDS</option>
+                <option>CMML</option>
+              </optgroup>
+              <optgroup label="MPN / CML">
+                <option>CML, chronic phase</option>
+                <option>CML, accelerated phase</option>
+                <option>CML, blast crisis</option>
+                <option>Essential thrombocythemia (ET)</option>
+                <option>Polycythemia vera (PV)</option>
+                <option>Primary myelofibrosis (PMF)</option>
+                <option>Mastocytosis / SM</option>
+                <option>JMML</option>
+              </optgroup>
+              <optgroup label="Lymphoid — B-cell">
+                <option>CLL / SLL</option>
+                <option>ALL, B-cell (B-ALL)</option>
+                <option>Ph-like ALL</option>
+                <option>DLBCL</option>
+                <option>Follicular lymphoma</option>
+                <option>Mantle cell lymphoma</option>
+                <option>Marginal zone lymphoma</option>
+              </optgroup>
+              <optgroup label="Lymphoid — T/NK / Plasma cell">
+                <option>ALL, T-cell (T-ALL)</option>
+                <option>Peripheral T-cell lymphoma</option>
+                <option>Multiple myeloma</option>
+                <option>Waldenström macroglobulinemia</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field">
+            <label>Specimen type</label>
+            <select id="spec" onchange="updateAll()">
+              <option>Bone marrow aspirate</option>
+              <option>Peripheral blood</option>
+              <option>FFPE tissue / biopsy</option>
+              <option>Fresh tissue</option>
+              <option>Cell-free DNA / liquid biopsy</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field">
+            <label>Clinical timepoint</label>
+            <select id="timepoint" onchange="updateAll()">
+              <option>Diagnosis / pre-treatment</option>
+              <option>Post-induction assessment</option>
+              <option>MRD monitoring</option>
+              <option>Post-transplant</option>
+              <option>Relapse</option>
+              <option>Progression / refractory</option>
+              <option>Surveillance / remission</option>
+            </select>
+          </div>
+          <div class="field"><label>Prior therapy relevant to variant</label><input type="text" id="therapy" placeholder="e.g. midostaurin, venetoclax" oninput="updateAll()"></div>
+          <div class="field"><label>Case / accession number</label><input type="text" id="accession" placeholder="e.g. SP-2025-12345" oninput="updateAll()"></div>
+        </div>
+        <div class="field"><label>Clinical notes / morphology correlation</label><textarea id="notes" placeholder="e.g. 70% blasts; monocytic differentiation; prior MDS history..." oninput="updateAll()"></textarea></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Bioinformatics &amp; database curation</div>
+        <div class="grid3">
+          <div class="field"><label>gnomAD AF</label><input type="number" id="gnomad" placeholder="0 if absent" step="0.000001" min="0" oninput="updateAll()"></div>
+          <div class="field">
+            <label>ClinVar classification</label>
+            <select id="clinvar" onchange="updateAll()">
+              <option value="">Not in ClinVar</option>
+              <option>Pathogenic</option>
+              <option>Likely pathogenic</option>
+              <option>VUS</option>
+              <option>Likely benign</option>
+              <option>Benign</option>
+              <option>Conflicting interpretations</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>COSMIC / OncoKB</label>
+            <select id="cosmic" onchange="updateAll()">
+              <option value="">Unknown / not checked</option>
+              <option>Yes — confirmed hotspot (≥50 cases)</option>
+              <option>Yes — recurrent (non-hotspot)</option>
+              <option>Not present</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid3">
+          <div class="field">
+            <label>In-silico (SIFT, PolyPhen, CADD)</label>
+            <select id="insilico" onchange="updateAll()">
+              <option value="">Not assessed</option>
+              <option>Damaging — all tools concordant</option>
+              <option>Damaging — majority (≥2/3)</option>
+              <option>Tolerated / benign</option>
+              <option>Conflicting predictions</option>
+              <option>N/A (not missense)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Germline assessment</label>
+            <select id="germline" onchange="updateAll()">
+              <option value="">Not assessed</option>
+              <option>Excluded — paired normal sequenced</option>
+              <option>Excluded — VAF &amp; population evidence</option>
+              <option>Possible germline — follow-up needed</option>
+              <option>Confirmed germline</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Functional / published data</label>
+            <select id="funcdata" onchange="updateAll()">
+              <option value="">None identified</option>
+              <option>Well-established functional studies (oncogenic)</option>
+              <option>Activating / gain-of-function confirmed</option>
+              <option>Loss-of-function confirmed</option>
+              <option>Limited supportive functional data</option>
+              <option>Functional studies — benign effect</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Additional databases checked</label><input type="text" id="dbs" placeholder="e.g. VarSome, cBioPortal, ICGC, HEMA Explorer" oninput="updateAll()"></div>
+          <div class="field"><label>Somatic variant caller / pipeline version</label><input type="text" id="pipeline" placeholder="e.g. GATK Mutect2 v4.3, in-house panel v2.1" oninput="updateAll()"></div>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn" onclick="clearAll()">Clear all</button>
+        <button class="btn btn-primary" onclick="showPanel('amp')">Classify → AMP tiers</button>
+      </div>
+    </div><!-- /input -->
+
+
+    <!-- ── AMP TIERS ── -->
+    <div id="panel-amp" class="panel">
+      <div class="page-header">
+        <h2>AMP/ASCO/CAP 2017 somatic tier classification</h2>
+        <p>Evidence-based tiering for clinical actionability in somatic oncology</p>
+      </div>
+      <div id="amp-result"><div class="alert alert-info">Complete variant input to generate classification.</div></div>
+    </div>
+
+    <!-- ── ONCOGENICITY ── -->
+    <div id="panel-onco" class="panel">
+      <div class="page-header">
+        <h2>ClinGen/CGC/VICC 2022 oncogenicity classification</h2>
+        <p>Standardized oncogenicity criteria — independent of clinical actionability</p>
+      </div>
+      <div id="onco-result"><div class="alert alert-info">Complete variant input to generate oncogenicity classification.</div></div>
+    </div>
+
+    <!-- ── WHO 2022 ── -->
+    <div id="panel-who" class="panel">
+      <div class="page-header">
+        <h2>WHO 2022 classification context &amp; ELN 2022 risk</h2>
+        <p>Diagnostic entity correlation, ELN AML risk, CHIP thresholds, and MRD guidance</p>
+      </div>
+      <div id="who-result"><div class="alert alert-info">Complete variant input to generate WHO context.</div></div>
+    </div>
+
+    <!-- ── REPORT ── -->
+    <div id="panel-report" class="panel">
+      <div class="page-header">
+        <h2>Report &amp; sign-out summary</h2>
+        <p>Structured interpretive report language for clinical sign-out</p>
+      </div>
+      <div id="report-result"><div class="alert alert-info">Complete variant input to generate report.</div></div>
+    </div>
+
+
+    <!-- ── REFERENCE: AML ── -->
+    <div id="panel-ref_aml" class="panel">
+      <div class="page-header"><h2>AML hotspot reference</h2><p>Key recurrent mutations by gene — WHO 2022 / ELN 2022</p></div>
+      <div class="card">
+        <div class="card-title">Defining / recurrent AML mutations</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--border2)">
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Gene</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Key hotspot(s)</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">ELN 2022 risk</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Targeted therapy</th>
+          </tr></thead>
+          <tbody id="aml-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── REFERENCE: MDS ── -->
+    <div id="panel-ref_mds" class="panel">
+      <div class="page-header"><h2>MDS hotspot reference</h2><p>Recurrent mutations in myelodysplastic syndromes — WHO 2022</p></div>
+      <div class="card">
+        <div class="card-title">MDS driver gene panel</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--border2)">
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Gene</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Variant types</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Frequency</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Notes</th>
+          </tr></thead>
+          <tbody id="mds-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── REFERENCE: LYMPHOID ── -->
+    <div id="panel-ref_lymph" class="panel">
+      <div class="page-header"><h2>Lymphoid malignancy hotspot reference</h2><p>CLL, DLBCL, FL, MCL, ALL key mutations</p></div>
+      <div class="card">
+        <div class="card-title">Lymphoid driver mutations</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--border2)">
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Gene</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Disease</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Significance</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Clinical impact</th>
+          </tr></thead>
+          <tbody id="lymph-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── REFERENCE: MPN ── -->
+    <div id="panel-ref_mpn" class="panel">
+      <div class="page-header"><h2>MPN / CML hotspot reference</h2><p>JAK2, CALR, MPL, BCR-ABL1 and associated mutations</p></div>
+      <div class="card">
+        <div class="card-title">MPN driver mutations</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--border2)">
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Gene / variant</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Disease association</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Frequency</th>
+            <th style="text-align:left;padding:8px 6px;color:var(--text2);font-weight:600">Notes</th>
+          </tr></thead>
+          <tbody id="mpn-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main><!-- /main -->
+</div><!-- /app-shell -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+var AML_DATA=[
+  {gene:'FLT3',hotspot:'ITD (exon 14-15); TKD p.D835/I836',eln:'Intermediate (low AR) / Adverse (high AR)',therapy:'Midostaurin, quizartinib, gilteritinib'},
+  {gene:'NPM1',hotspot:'Frameshift ins exon 12 (type A: TCTG most common)',eln:'Favorable (if FLT3-ITD low/absent)',therapy:'Standard; venetoclax combinations'},
+  {gene:'IDH1',hotspot:'p.R132C/H/S/G/L',eln:'Intermediate',therapy:'Ivosidenib'},
+  {gene:'IDH2',hotspot:'p.R140Q/L; p.R172K/M',eln:'Intermediate',therapy:'Enasidenib'},
+  {gene:'DNMT3A',hotspot:'p.R882H/C/S (hotspot); truncating',eln:'Intermediate',therapy:'Hypomethylating agents'},
+  {gene:'RUNX1 (fusion)',hotspot:'RUNX1-RUNX1T1 (t(8;21))',eln:'Favorable',therapy:'Standard; gemtuzumab'},
+  {gene:'CBFB',hotspot:'CBFB-MYH11 (inv16/t16;16)',eln:'Favorable',therapy:'Standard; gemtuzumab'},
+  {gene:'TP53',hotspot:'Missense R175, R248, R273; truncating; del17p',eln:'Adverse',therapy:'Decitabine, azacitidine; APR-246 (investigational)'},
+  {gene:'ASXL1',hotspot:'Frameshift; truncating exon 12',eln:'Adverse',therapy:'Hypomethylating agents'},
+  {gene:'STAG2',hotspot:'Frameshift / truncating',eln:'Adverse',therapy:'Investigational'},
+  {gene:'EZH2',hotspot:'Missense / truncating SET domain',eln:'Adverse',therapy:'Tazemetostat (lymphoma context)'},
+  {gene:'KIT',hotspot:'p.D816V (mastocytosis); exon 8/17 (CBF-AML)',eln:'Intermediate (CBF-AML with KIT)',therapy:'Avapritinib (SM); imatinib (CBF-AML, off-label)'},
+];
+var MDS_DATA=[
+  {gene:'SF3B1',type:'Missense (K700E hotspot)',freq:'~25-30% MDS',notes:'Associated with ring sideroblasts; WHO 2022 defining for MDS-RS; favorable prognosis'},
+  {gene:'SRSF2',type:'Missense (P95H/L/R hotspot)',freq:'~15% MDS',notes:'Associated with CMML; MDS/MPN overlap; worse prognosis than SF3B1'},
+  {gene:'TET2',type:'Missense / truncating / in-frame del',freq:'~20-25% MDS',notes:'Common CHIP gene; loss-of-function; no independent poor prognosis marker'},
+  {gene:'DNMT3A',type:'Missense R882; truncating',freq:'~15% MDS',notes:'Most common CHIP gene; R882 hotspot; adverse in some contexts'},
+  {gene:'ASXL1',type:'Frameshift / truncating (G646fs)',freq:'~15-20% MDS',notes:'ELN adverse in AML; MDS adverse-risk marker; poor prognosis'},
+  {gene:'RUNX1',type:'Missense / frameshift',freq:'~10% MDS',notes:'MDS-EB and MDS/AML; adverse; familial thrombocytopenia predisposition gene (germline)'},
+  {gene:'TP53',type:'Missense / truncating',freq:'~8-10% MDS',notes:'Biallelic = very poor prognosis; monosomal karyotype association; WHO 2022 distinct entity'},
+  {gene:'EZH2',type:'Missense / truncating',freq:'~5-8% MDS',notes:'Adverse-risk; PRC2 complex component'},
+  {gene:'STAG2',type:'Frameshift / truncating',freq:'~5% MDS',notes:'Cohesin complex; adverse prognosis; associated with complex karyotype'},
+  {gene:'ZRSR2',type:'Frameshift / truncating (X-linked)',freq:'~5% MDS',notes:'Splicing factor; X-linked so hemizygous in males; commonly LOF'},
+  {gene:'BCOR',type:'Frameshift / truncating',freq:'~4% MDS',notes:'Transcription repressor; ELN adverse in AML context'},
+  {gene:'CBL',type:'Missense exon 8-9',freq:'~3% MDS',notes:'E3 ubiquitin ligase; gain-of-function missense; associated with JMML and CMML'},
+];
+var LYMPH_DATA=[
+  {gene:'TP53',disease:'CLL; DLBCL; MCL; ALL',sig:'del17p / mutation = chemo-refractory',clinical:'Ibrutinib/venetoclax (CLL); venetoclax ± R (DLBCL); adverse prognosis all entities'},
+  {gene:'SF3B1',disease:'CLL',sig:'K700E hotspot; independent adverse marker',clinical:'No targeted therapy; ibrutinib, BCL2i combinations'},
+  {gene:'NOTCH1',disease:'CLL; T-ALL',sig:'Frameshift / truncating PEST domain',clinical:'Adverse CLL prognosis; anti-NOTCH investigational in T-ALL'},
+  {gene:'ATM',disease:'CLL; MCL',sig:'del11q / truncating; DDR defect',clinical:'Adverse; checkpoint defect — consider PARP inhibition trials'},
+  {gene:'IGHV',disease:'CLL',sig:'Unmutated (<2%) = adverse; mutated = favorable',clinical:'IGHV status guides treatment choice (FCR vs ibrutinib)'},
+  {gene:'MYD88',disease:'WM; activated B-cell DLBCL',sig:'p.L265P hotspot (oncogenic)',clinical:'Ibrutinib approved for WM/MYD88-mut; IRAK4 inhibitors investigational'},
+  {gene:'EZH2',disease:'Follicular lymphoma; DLBCL-GCB',sig:'p.Y646 gain-of-function (hotspot)',clinical:'Tazemetostat FDA-approved for R/R FL (EZH2-mutant)'},
+  {gene:'CREBBP',disease:'Follicular lymphoma; DLBCL',sig:'HAT domain truncating',clinical:'Adverse; KAT6A/CREBBP inhibitors investigational'},
+  {gene:'CCND1',disease:'Mantle cell lymphoma',sig:'t(11;14) — defining translocation',clinical:'Ibrutinib, venetoclax; palbociclib CDK4/6i'},
+  {gene:'BCR (BCR-ABL1)',disease:'Ph+ ALL; CML; Ph-like ALL',sig:'Fusion — defining/actionable',clinical:'TKIs: dasatinib, ponatinib (Ph+ ALL); imatinib/dasatinib (CML)'},
+  {gene:'JAK2 / CRLF2 / ABL1',disease:'Ph-like ALL',sig:'Fusions driving JAK/STAT or ABL signaling',clinical:'TKI-eligible if ABL-class fusion; JAK inhibitor if JAK-activating'},
+  {gene:'BRAF',disease:'HCL; DLBCL; MM',sig:'p.V600E (HCL-defining)',clinical:'Vemurafenib / dabrafenib approved HCL'},
+];
+var MPN_DATA=[
+  {variant:'JAK2 p.V617F',disease:'PV (>95%); ET (~55%); PMF (~65%)',freq:'See disease %',notes:'Quantitative allele burden helpful; high burden correlates with fibrosis'},
+  {variant:'JAK2 exon 12',disease:'PV (JAK2 V617F-negative)',freq:'~2-3% PV',notes:'Confirmatory for WHO PV diagnosis when V617F-negative'},
+  {variant:'CALR type 1 (52bp del)',disease:'ET; PMF',freq:'~25% ET; ~25% PMF',notes:'Type 1 associated with higher fibrosis risk in PMF'},
+  {variant:'CALR type 2 (5bp ins)',disease:'ET',freq:'~10% ET',notes:'Type 2 (TTGTC) — more common in ET; better prognosis'},
+  {variant:'MPL p.W515L/K',disease:'ET; PMF',freq:'~3-5%',notes:'Thrombopoietin receptor activating; JAK2/CALR-negative MPN'},
+  {variant:'BCR-ABL1 (t(9;22))',disease:'CML',freq:'~95% CML',notes:'FISH + RT-PCR confirmation; quantitative PCR for MRD. TKI selection based on BCR breakpoint and mutations'},
+  {variant:'ABL1 kinase domain',disease:'CML (TKI-resistant)',freq:'~50% resistance',notes:'T315I = ponatinib only. E255K/V, Y253H = dasatinib-resistant. F317L = nilotinib-resistant. Asciminib for T315I'},
+  {variant:'KIT p.D816V',disease:'Systemic mastocytosis',freq:'>90% SM',notes:'Avapritinib FDA-approved for advanced SM. Allele burden by ddPCR important'},
+  {variant:'CSF3R',disease:'Chronic neutrophilic leukemia',freq:'>90% CNL',notes:'T618I membrane-proximal = ruxolitinib; truncating = dasatinib/chemotherapy'},
+  {variant:'CALR / MPL / JAK2 (triple-negative)',disease:'PMF / ET',freq:'~10% MPN',notes:'Triple-negative MPN — consider germline MPL/JAK2 testing; worse prognosis in PMF'},
+];
+
+function renderRefTables() {
+  var tb=document.getElementById('aml-table');
+  if(tb&&!tb.hasChildNodes()){
+    AML_DATA.forEach(function(r){
+      var riskClass=r.eln.indexOf('Favorable')>-1?'badge-favorable':r.eln.indexOf('Adverse')>-1?'badge-adverse':'badge-intermediate';
+      tb.innerHTML+='<tr style="border-bottom:0.5px solid var(--border)">'
+        +'<td style="padding:8px 6px;font-family:var(--font-mono);font-weight:600;color:var(--text)">'+r.gene+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.hotspot+'</td>'
+        +'<td style="padding:8px 6px"><span class="badge '+riskClass+'">'+r.eln+'</span></td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.therapy+'</td></tr>';
+    });
+  }
+  var tb2=document.getElementById('mds-table');
+  if(tb2&&!tb2.hasChildNodes()){
+    MDS_DATA.forEach(function(r){
+      tb2.innerHTML+='<tr style="border-bottom:0.5px solid var(--border)">'
+        +'<td style="padding:8px 6px;font-family:var(--font-mono);font-weight:600;color:var(--text)">'+r.gene+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.type+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.freq+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.notes+'</td></tr>';
+    });
+  }
+  var tb3=document.getElementById('lymph-table');
+  if(tb3&&!tb3.hasChildNodes()){
+    LYMPH_DATA.forEach(function(r){
+      tb3.innerHTML+='<tr style="border-bottom:0.5px solid var(--border)">'
+        +'<td style="padding:8px 6px;font-family:var(--font-mono);font-weight:600;color:var(--text)">'+r.gene+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.disease+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.sig+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.clinical+'</td></tr>';
+    });
+  }
+  var tb4=document.getElementById('mpn-table');
+  if(tb4&&!tb4.hasChildNodes()){
+    MPN_DATA.forEach(function(r){
+      tb4.innerHTML+='<tr style="border-bottom:0.5px solid var(--border)">'
+        +'<td style="padding:8px 6px;font-family:var(--font-mono);font-weight:600;color:var(--text)">'+r.variant+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.disease+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.freq+'</td>'
+        +'<td style="padding:8px 6px;color:var(--text2)">'+r.notes+'</td></tr>';
+    });
+  }
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var S={};
+function g(id){return (document.getElementById(id)||{}).value||'';}
+
+function setGene(gene){
+  document.getElementById('gene').value=gene;
+  document.querySelectorAll('.gene-chip').forEach(function(c){
+    c.classList.toggle('selected', c.textContent===gene);
+  });
+  updateAll();
+}
+
+function updateAll(){
+  S={
+    gene:g('gene').toUpperCase().trim(),
+    vtype:g('vtype'), hgvsc:g('hgvsc'), hgvsp:g('hgvsp'),
+    vaf:parseFloat(g('vaf'))||0, depth:parseInt(g('depth'))||0,
+    cyto:g('cyto'), itd_ar:g('itd_ar'), dx:g('dx'), spec:g('spec'),
+    timepoint:g('timepoint'), therapy:g('therapy'), accession:g('accession'),
+    notes:g('notes'), gnomad:parseFloat(g('gnomad'))||0,
+    clinvar:g('clinvar'), cosmic:g('cosmic'), insilico:g('insilico'),
+    germline:g('germline'), funcdata:g('funcdata'),
+    dbs:g('dbs'), pipeline:g('pipeline')
+  };
+  document.getElementById('qs-gene').textContent=S.gene||'—';
+  document.getElementById('qs-vaf').textContent=S.vaf?S.vaf+'%':'—';
+  var a=classifyAMP(); var o=classifyOnco();
+  document.getElementById('qs-tier').textContent=S.gene?'Tier '+a.tier:'—';
+  document.getElementById('qs-onco').textContent=S.gene?o.cls:'—';
+}
+
+function clearAll(){
+  ['gene','hgvsc','hgvsp','vaf','depth','cyto','itd_ar','therapy','accession','notes','gnomad','dbs','pipeline'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['vtype','dx','spec','timepoint','clinvar','cosmic','insilico','germline','funcdata'].forEach(function(id){var el=document.getElementById(id);if(el)el.selectedIndex=0;});
+  document.querySelectorAll('.gene-chip').forEach(function(c){c.classList.remove('selected');});
+  updateAll();
+}
+
+// ── AMP CLASSIFICATION ────────────────────────────────────────────────────────
+function classifyAMP(){
+  var hotspots={
+    'FLT3':['835','836','ITD'],'NPM1':['frameshift','NPM1'],'KRAS':['G12','G13','Q61'],
+    'NRAS':['G12','G13','Q61'],'IDH1':['R132'],'IDH2':['R140','R172'],
+    'DNMT3A':['R882'],'JAK2':['V617'],'KIT':['D816','exon 8'],'TP53':['R248','R273','R175'],
+    'BRAF':['V600'],'EZH2':['Y646'],'MYD88':['L265'],'CALR':['52bp','TTGTC','frameshift'],
+    'MPL':['W515'],'BCR':['ABL'],'CBFB':['MYH11'],'RUNX1':['RUNX1T1'],'NOTCH1':['PEST','frameshift']
+  };
+  var knownHotspot=false;
+  if(S.cosmic&&S.cosmic.indexOf('hotspot')>-1) knownHotspot=true;
+  if(S.gene&&hotspots[S.gene]){
+    hotspots[S.gene].forEach(function(h){
+      if(S.hgvsp.indexOf(h)>-1||S.vtype.indexOf(h)>-1||S.hgvsc.indexOf(h)>-1) knownHotspot=true;
+    });
+  }
+  var fdaMap={
+    'FLT3':['AML'],'IDH1':['AML','MDS'],'IDH2':['AML'],'KIT':['Mastocytosis','CBF'],
+    'BCR':['CML','ALL','Ph-like'],'BRAF':['HCL','DLBCL'],'EZH2':['Follicular'],
+    'MYD88':['WM','Waldenström']
+  };
+  var hasFDA=false;
+  if(S.gene&&fdaMap[S.gene]&&S.dx){
+    fdaMap[S.gene].forEach(function(d){if(S.dx.indexOf(d)>-1) hasFDA=true;});
+  }
+  if(S.gene==='FLT3'&&(S.vtype.indexOf('FLT3-ITD')>-1||S.hgvsp.indexOf('835')>-1)&&S.dx.indexOf('AML')>-1) hasFDA=true;
+  if(S.gene==='IDH1'&&S.hgvsp.indexOf('R132')>-1) hasFDA=true;
+  if(S.gene==='IDH2'&&(S.hgvsp.indexOf('R140')>-1||S.hgvsp.indexOf('R172')>-1)) hasFDA=true;
+
+  var criteria=[
+    {code:'A',label:'FDA-approved therapy / professional guideline — same tumor type',met:hasFDA,strength:'standalone'},
+    {code:'B',label:'Well-established SOC biomarker in this diagnosis',met:knownHotspot&&hasFDA,strength:'standalone'},
+    {code:'C',label:'FDA-approved for different tumor type / investigational in this type',met:!hasFDA&&(S.cosmic&&S.cosmic.indexOf('Yes')>-1)||false,strength:'strong'},
+    {code:'D',label:'Preclinical evidence / clinical trial biomarker',met:knownHotspot&&!hasFDA,strength:'moderate'},
+    {code:'E',label:'No current evidence for clinical actionability',met:!knownHotspot&&!hasFDA,strength:'supporting'},
+    {code:'Q1',label:'VAF ≥ 5% (above noise threshold)',met:S.vaf>=5,strength:'supporting'},
+    {code:'Q2',label:'Read depth ≥ 500×',met:S.depth>=500,strength:'supporting'},
+    {code:'Q3',label:'Germline excluded / assessed',met:S.germline.indexOf('Excluded')>-1,strength:'moderate'},
+    {code:'Q4',label:'gnomAD absent or AF < 0.001%',met:S.gnomad<0.00001,strength:'supporting'},
+  ];
+
+  var tier, color;
+  if(hasFDA||(S.clinvar==='Pathogenic'&&knownHotspot)){tier='I';color='badge-tier1';}
+  else if(knownHotspot||S.clinvar==='Pathogenic'||S.clinvar==='Likely pathogenic'){tier='II';color='badge-tier2';}
+  else if(S.clinvar==='Likely benign'||S.clinvar==='Benign'){tier='IV';color='badge-tier4';}
+  else{tier='III';color='badge-tier3';}
+
+  return {tier:tier,color:color,criteria:criteria,hasFDA:hasFDA,knownHotspot:knownHotspot};
+}
+
+// ── ONCOGENICITY ──────────────────────────────────────────────────────────────
+function classifyOnco(){
+  var oncogenes=['FLT3','KIT','KRAS','NRAS','JAK2','IDH1','IDH2','BRAF','BCR','MYC','BCL2','CCND1','MYD88','CSF3R','MPL','CALR'];
+  var tsgs=['TP53','RB1','PTEN','CDKN2A','NF1','WT1','RUNX1','EZH2','STAG2','ASXL1','ATM','CREBBP','KMT2D','BCOR','SF3B1','TET2','DNMT3A'];
+  var isOnco=oncogenes.indexOf(S.gene)>-1;
+  var isTSG=tsgs.indexOf(S.gene)>-1;
+  var codes=[];
+
+  if(S.cosmic&&S.cosmic.indexOf('hotspot')>-1) codes.push({code:'OM1',label:'Confirmed hotspot in COSMIC/OncoKB (≥50 cases)',strength:'strong'});
+  if(S.cosmic&&S.cosmic.indexOf('recurrent')>-1) codes.push({code:'OM2',label:'Recurrent variant at same position (non-hotspot)',strength:'moderate'});
+  if(S.funcdata.indexOf('Well-established')>-1||S.funcdata.indexOf('Activating')>-1) codes.push({code:'OS2',label:'Well-established functional data — oncogenic',strength:'strong'});
+  if(S.funcdata.indexOf('Loss-of-function')>-1) codes.push({code:'OS2b',label:'Functional data confirms loss-of-function',strength:'strong'});
+  if(S.funcdata.indexOf('Limited')>-1) codes.push({code:'OP2',label:'Limited functional data supporting oncogenic effect',strength:'supporting'});
+  if(isTSG&&(S.vtype.indexOf('Nonsense')>-1||S.vtype.indexOf('Frameshift')>-1||S.vtype.indexOf('Splice')>-1)) codes.push({code:'OVS1',label:'Null variant in established tumor suppressor gene',strength:'very strong'});
+  if(isTSG&&(S.vtype.indexOf('Copy number loss')>-1||S.vtype.indexOf('LOH')>-1)) codes.push({code:'OVS1b',label:'Biallelic inactivation / CNV loss in TSG',strength:'very strong'});
+  if(isOnco&&(S.vtype.indexOf('missense')>-1||S.vtype.indexOf('SNV')>-1)) codes.push({code:'OP1',label:'Missense in known oncogenic domain',strength:'supporting'});
+  if(S.gnomad===0||S.gnomad<0.00001) codes.push({code:'OM4',label:'Absent from population databases',strength:'moderate'});
+  if(S.insilico.indexOf('concordant')>-1) codes.push({code:'OP4',label:'Concordant damaging in-silico predictions (all tools)',strength:'supporting'});
+  if(S.insilico.indexOf('majority')>-1) codes.push({code:'OP4b',label:'Majority of in-silico tools predict damaging',strength:'supporting'});
+  if(S.clinvar==='Pathogenic'||S.clinvar==='Likely pathogenic') codes.push({code:'OM3',label:'ClinVar pathogenic/likely pathogenic classification',strength:'moderate'});
+  if(S.gnomad>0.001) codes.push({code:'OBP1',label:'AF > 0.1% in gnomAD — common germline variant',strength:'benign'});
+  if(S.clinvar==='Benign'||S.clinvar==='Likely benign') codes.push({code:'OBP2',label:'ClinVar benign / likely benign',strength:'benign'});
+  if(S.insilico.indexOf('Tolerated')>-1) codes.push({code:'OBP3',label:'In-silico tools predict tolerated / benign',strength:'benign'});
+  if(S.funcdata.indexOf('benign')>-1) codes.push({code:'OBS2',label:'Functional data shows no oncogenic effect',strength:'benign'});
+
+  var wt={'very strong':8,'strong':4,'moderate':2,'supporting':1,'benign':-2};
+  var vscore=0;
+  codes.forEach(function(c){vscore+=wt[c.strength]||0;});
+
+  var cls,clsColor;
+  if(vscore>=8){cls='Oncogenic';clsColor='badge-oncogenic';}
+  else if(vscore>=5){cls='Likely oncogenic';clsColor='badge-likely-onco';}
+  else if(vscore<=-4){cls='Benign';clsColor='badge-benign';}
+  else if(vscore<=-2){cls='Likely benign';clsColor='badge-likely-ben';}
+  else{cls='VUS — uncertain';clsColor='badge-vus';}
+
+  return {cls:cls,clsColor:clsColor,codes:codes,vscore:vscore};
+}
+
+// ── WHO CONTEXT ───────────────────────────────────────────────────────────────
+function getWHO(){
+  var whoDefining={
+    'AML with NPM1 mutation':['NPM1'],'AML with FLT3-ITD':['FLT3'],
+    'AML with RUNX1-RUNX1T1':['RUNX1','CBFB'],'AML with CBFB-MYH11':['CBFB'],
+    'AML with TP53 (biallelic)':['TP53'],'AML with ASXL1/SRSF2/STAG2 (MR-AML)':['ASXL1','SRSF2','STAG2','BCOR','EZH2','RUNX1','SF3B1','ZRSR2','U2AF1'],
+    'MDS, low risk (MDS-LR)':['TET2','DNMT3A','SF3B1','SRSF2','ASXL1','ZRSR2','U2AF1'],
+    'MDS with excess blasts (MDS-EB)':['TP53','RUNX1','EZH2','STAG2','ASXL1'],
+    'MDS/AML':['TP53','RUNX1','ASXL1','EZH2','STAG2'],
+    'CMML':['TET2','SRSF2','ASXL1','NRAS','KRAS','CBL','RAS'],
+    'CML, chronic phase':['BCR'],'CML, accelerated phase':['BCR'],'CML, blast crisis':['BCR','ABL1'],
+    'Essential thrombocythemia (ET)':['JAK2','CALR','MPL'],
+    'Polycythemia vera (PV)':['JAK2'],
+    'Primary myelofibrosis (PMF)':['JAK2','CALR','MPL'],
+    'Mastocytosis / SM':['KIT'],
+    'CLL / SLL':['TP53','SF3B1','NOTCH1','ATM','IGHV'],
+    'ALL, B-cell (B-ALL)':['BCR','PAX5','IKZF1'],
+    'Ph-like ALL':['BCR','JAK2','CRLF2','ABL1'],
+    'DLBCL':['MYC','BCL2','BCL6','TP53','EZH2'],
+    'Follicular lymphoma':['EZH2','CREBBP','KMT2D','BCL2'],
+    'Mantle cell lymphoma':['CCND1','TP53','ATM','CDKN2A'],
+    'Multiple myeloma':['TP53','KRAS','NRAS','BRAF','FGFR3','CCND1'],
+    'Waldenström macroglobulinemia':['MYD88','CXCR4'],
+    'MPN / ET / PV / PMF':['JAK2','CALR','MPL'],
+  };
+  var chipGenes=['TET2','DNMT3A','ASXL1','IDH1','IDH2','SF3B1','SRSF2','TP53','CBL','KRAS','NRAS','JAK2','GNB1','PPM1D'];
+  var relGenes=(S.dx&&whoDefining[S.dx])||[];
+  var isDef=relGenes.indexOf(S.gene)>-1;
+  var entries=[];
+
+  if(S.dx&&S.gene){
+    if(isDef) entries.push({type:'success',msg:S.gene+' is a WHO 2022 defining / recurrent alteration for '+S.dx+'.'});
+    else if(relGenes.length>0) entries.push({type:'warning',msg:S.gene+' is not among the primary defining alterations for '+S.dx+' (WHO 2022). May represent a co-mutation, secondary hit, or an additional driver. Correlate with morphology, cytogenetics, and clinical context.'});
+  }
+
+  // Disease-specific guidance
+  if(S.gene==='NPM1') entries.push({type:'info',msg:'NPM1: type A (TCTG) most common. Biallelic mutations not required for diagnosis. FLT3-ITD co-mutation affects ELN risk (assess allelic ratio).'});
+  if(S.gene==='FLT3'&&S.vtype.indexOf('ITD')>-1) entries.push({type:'warning',msg:'FLT3-ITD allelic ratio (AR) is prognostically critical. AR ≥ 0.5 = high (ELN adverse); AR < 0.5 with NPM1 = intermediate. Document AR in report. Eligible for midostaurin (frontline) or quizartinib/gilteritinib (R/R).'});
+  if(S.gene==='TP53') entries.push({type:'warning',msg:'TP53: assess biallelic loss (compound heterozygosity, del17p/LOH). Biallelic TP53 = distinct WHO 2022 entity with very poor prognosis. Report TP53 copy number alongside mutation.'});
+  if(S.gene==='CALR') entries.push({type:'info',msg:'CALR: type 1 (52bp del) vs type 2 (5bp TTGTC ins) — type 1 higher risk of fibrosis in PMF. Both drive TPO receptor activation. Quantitative allele burden may be reported.'});
+  if(S.gene==='JAK2'&&S.hgvsp.indexOf('V617')>-1) entries.push({type:'info',msg:'JAK2 V617F allele burden: high allele burden in PV correlates with thrombotic risk and progression. Report quantitative VAF. Ruxolitinib available for symptomatic MPN.'});
+  if(S.gene==='BCR'||S.vtype.indexOf('BCR-ABL')>-1) entries.push({type:'info',msg:'BCR-ABL1: confirm by FISH and quantitative RT-PCR (IS%). Kinase domain mutation screening at resistance. ABL1 T315I = ponatinib or asciminib.'});
+  if(S.gene==='KIT'&&S.hgvsp.indexOf('D816')>-1) entries.push({type:'warning',msg:'KIT D816V: defines systemic mastocytosis. Avapritinib FDA-approved for advanced SM. Quantitative D816V allele burden by ddPCR is prognostically relevant.'});
+  if(S.gene==='EZH2'&&S.dx.indexOf('Follicular')>-1) entries.push({type:'success',msg:'EZH2 p.Y646 gain-of-function: tazemetostat FDA-approved for R/R follicular lymphoma (EZH2-mutant). Document specific amino acid change.'});
+  if(S.gene==='IDH1'||S.gene==='IDH2') entries.push({type:'info',msg:'IDH1/2 mutations produce 2-hydroxyglutarate (oncometabolite). WHO 2022 recognizes IDH1/2 as significant AML co-mutations. MRD monitoring by quantitative PCR available at specialized centres.'});
+
+  // VAF/CHIP guidance
+  if(S.vaf>0&&S.vaf<5) entries.push({type:'warning',msg:'VAF < 5%: consider CHIP (clonal hematopoiesis of indeterminate potential) vs. subclonal component of disease. WHO CHIP threshold: ≥ driver mutation + VAF 2–10%. Correlate with blast count and clinical presentation.'});
+  if(S.vaf>0&&S.vaf<2) entries.push({type:'danger',msg:'VAF < 2%: below WHO CHIP threshold. May represent sequencing noise, normal aging hematopoiesis, or a very minor subclone. Extreme caution before reporting as a disease-driving event.'});
+  if(chipGenes.indexOf(S.gene)>-1&&S.vaf>0&&S.vaf<15&&S.timepoint.indexOf('Diagnosis')>-1) entries.push({type:'warning',msg:S.gene+' is a common CHIP driver. VAF of '+S.vaf+'% warrants correlation with blast %, prior history, and clonal cytopenia data to distinguish CHIP from disease-associated mutation.'});
+  if(S.timepoint.indexOf('MRD')>-1||S.timepoint.indexOf('Post')>-1) entries.push({type:'info',msg:'Post-treatment / MRD context: NPM1 and IDH1/2 are suitable molecular MRD targets (quantitative PCR). FLT3-ITD MRD has prognostic significance but methodological limitations. Interpret VAF with assay sensitivity in mind.'});
+  if(S.germline.indexOf('germline')>-1&&S.germline.indexOf('Possible')>-1) entries.push({type:'danger',msg:'Possible germline variant: TP53, RUNX1, DDX41, GATA2, CEBPA, SRP72, and others may represent hereditary predisposition syndromes. Referral for germline testing and genetic counselling recommended.'});
+
+  // ELN 2022
+  var elnRisk='', elnColor='', elnDetail='';
+  if(S.dx&&S.dx.indexOf('AML')>-1){
+    if(S.gene==='RUNX1'&&S.vtype.indexOf('fusion')>-1){elnRisk='Favorable';elnColor='badge-favorable';elnDetail='RUNX1-RUNX1T1 — ELN 2022 favorable. Gemtuzumab ozogamicin should be considered.';}
+    else if(S.gene==='CBFB'&&S.vtype.indexOf('fusion')>-1){elnRisk='Favorable';elnColor='badge-favorable';elnDetail='CBFB-MYH11 (inv16/t16;16) — ELN 2022 favorable. KIT mutation may modulate prognosis.';}
+    else if(S.gene==='NPM1'&&S.vtype.indexOf('NPM1')>-1){elnRisk='Favorable (if FLT3-ITD low/absent)';elnColor='badge-favorable';elnDetail='NPM1-mutant without FLT3-ITD-high = ELN favorable. With FLT3-ITD-high AR = intermediate. MRD-guided treatment decisions.';}
+    else if(S.gene==='FLT3'&&S.vtype.indexOf('ITD')>-1){elnRisk='Intermediate to Adverse';elnColor='badge-intermediate';elnDetail='FLT3-ITD: low AR (<0.5) with NPM1-mut = intermediate. High AR (≥0.5) = adverse. Allelic ratio must be documented.';}
+    else if(S.gene==='TP53'){elnRisk='Adverse';elnColor='badge-adverse';elnDetail='TP53 — ELN 2022 adverse. Biallelic = very poor. Venetoclax-based or decitabine regimens; clinical trial strongly recommended.';}
+    else if(['ASXL1','BCOR','EZH2','RUNX1','SF3B1','SRSF2','STAG2','U2AF1','ZRSR2'].indexOf(S.gene)>-1){elnRisk='Adverse';elnColor='badge-adverse';elnDetail=S.gene+' — ELN 2022 adverse-risk mutation (myelodysplasia-related). SCT in first CR should be discussed.';}
+    else if(S.gene==='IDH1'||S.gene==='IDH2'){elnRisk='Intermediate';elnColor='badge-intermediate';elnDetail=S.gene+' — ELN 2022 intermediate risk. Targeted therapy available (ivosidenib / enasidenib). Consider IDH inhibitor combination strategies.';}
+    else if(S.gene==='DNMT3A'||S.gene==='TET2'){elnRisk='Intermediate';elnColor='badge-intermediate';elnDetail=S.gene+' — frequent co-mutation; intermediate risk in isolation. Prognosis depends on co-occurring alterations and cytogenetics.';}
+    else{elnRisk='Not independently deterministic';elnColor='badge-tier4';elnDetail='This variant alone does not define an ELN 2022 risk category. Integrate with karyotype, additional mutations, and blast percentage.';}
+  }
+
+  return {entries:entries,isDef:isDef,relGenes:relGenes,elnRisk:elnRisk,elnColor:elnColor,elnDetail:elnDetail};
+}
+
+// ── RENDER PANELS ─────────────────────────────────────────────────────────────
+function renderAMP(){
+  var a=classifyAMP();
+  var noData=!S.gene;
+  var html='';
+
+  html+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">'
+    +'<div><div class="card-title">AMP/ASCO/CAP 2017 somatic tier</div>'
+    +'<div style="font-size:22px;font-weight:600;margin-top:4px">'+(noData?'Tier —':'Tier '+a.tier)+'</div>'
+    +'<div style="font-size:13px;color:var(--text2);margin-top:4px">'
+    +(['Tier I — Strong clinical significance','Tier II — Potential clinical significance','Tier III — VUS','Tier IV — Benign / likely benign'][parseInt(a.tier)-1]||'Enter variant data')+'</div></div>'
+    +'<span class="badge '+(noData?'badge-tier4':a.color)+'" style="font-size:13px;padding:8px 16px;margin-top:4px">'+(!noData?'Tier '+a.tier:'—')+'</span></div>';
+
+  if(a.hasFDA) html+='<div class="alert alert-success">FDA-approved targeted therapy exists for this gene/variant in the selected diagnosis. Include drug name, approved indication, and FDA approval date in the report.</div>';
+  if(S.gene==='FLT3'&&S.vtype.indexOf('FLT3-ITD')>-1) html+='<div class="alert alert-info">FLT3-ITD: midostaurin approved for newly diagnosed AML; quizartinib and gilteritinib for R/R AML. Document allelic ratio in the report.</div>';
+  if(S.gene==='IDH1') html+='<div class="alert alert-info">IDH1 p.R132: ivosidenib FDA-approved for R/R AML (2018) and newly diagnosed AML with IDH1 mutation in combination with azacitidine (2023), and R/R MDS with IDH1 mutation.</div>';
+  if(S.gene==='IDH2') html+='<div class="alert alert-info">IDH2 p.R140/p.R172: enasidenib FDA-approved for R/R AML (2017).</div>';
+  if(S.gene==='EZH2'&&S.dx.indexOf('Follicular')>-1) html+='<div class="alert alert-success">EZH2 gain-of-function (p.Y646): tazemetostat FDA-approved for R/R follicular lymphoma in EZH2-mutant patients (2020).</div>';
+  if(S.gene==='BCR'||(S.vtype&&S.vtype.indexOf('fusion')>-1&&(S.dx.indexOf('CML')>-1||S.dx.indexOf('Ph')>-1||S.dx.indexOf('ALL')>-1))) html+='<div class="alert alert-info">BCR-ABL1: imatinib, dasatinib, nilotinib, ponatinib, asciminib FDA-approved for CML. Dasatinib and ponatinib for Ph+ ALL. Select TKI based on BCR exon type and resistance mutations.</div>';
+  if(S.gene==='KIT'&&S.hgvsp.indexOf('D816')>-1) html+='<div class="alert alert-success">KIT p.D816V: avapritinib FDA-approved for advanced / aggressive systemic mastocytosis and SM-AHN (2021).</div>';
+  if(S.gene==='MYD88'&&(S.dx.indexOf('WM')>-1||S.dx.indexOf('Waldenström')>-1)) html+='<div class="alert alert-success">MYD88 p.L265P: ibrutinib FDA-approved for WM. MYD88 mutation is a predictive biomarker for response.</div>';
+
+  html+='<hr><div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:10px">Evidence criteria applied</div>';
+  html+='<ul class="criteria-list">';
+  a.criteria.forEach(function(c){
+    if(c.strength==='supporting'&&!c.met&&!S.gene) return;
+    var sMap={standalone:'st-standalone',strong:'st-strong',moderate:'st-moderate',supporting:'st-supporting'};
+    html+='<li><div class="crit-icon '+(c.met?'crit-met':'crit-unmet')+'">'+(c.met?'✓':'○')+'</div>'
+      +'<span class="crit-label'+(c.met?' met':'')+'"><strong style="font-family:var(--font-mono);font-size:11px;margin-right:6px">'+c.code+'</strong>'+c.label+'</span>'
+      +'<span class="strength-tag '+(sMap[c.strength]||'st-supporting')+'">'+c.strength+'</span></li>';
+  });
+  html+='</ul></div>';
+
+  html+='<div class="card"><div class="card-title">Quality metrics</div><div class="grid4">'
+    +'<div class="metric-card"><div class="mc-label">VAF</div><div class="mc-val">'+(S.vaf?S.vaf+'%':'—')+'</div></div>'
+    +'<div class="metric-card"><div class="mc-label">Depth</div><div class="mc-val">'+(S.depth?S.depth+'×':'—')+'</div></div>'
+    +'<div class="metric-card"><div class="mc-label">gnomAD</div><div class="mc-val" style="font-size:16px">'+(S.gnomad||'Absent')+'</div></div>'
+    +'<div class="metric-card"><div class="mc-label">ClinVar</div><div class="mc-val" style="font-size:14px">'+(S.clinvar||'Not listed')+'</div></div>'
+    +'</div></div>';
+
+  if(noData) html='<div class="alert alert-info">Complete variant input fields to generate AMP/ASCO/CAP tier classification.</div>'+html;
+  document.getElementById('amp-result').innerHTML=html;
+}
+
+function renderOnco(){
+  var o=classifyOnco();
+  var noData=!S.gene;
+  var maxScore=12;
+  var pct=Math.min(100,Math.round(Math.max(0,o.vscore)/maxScore*100));
+  var html='';
+
+  html+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">'
+    +'<div><div class="card-title">ClinGen/CGC/VICC 2022 oncogenicity</div>'
+    +'<div style="font-size:22px;font-weight:600;margin-top:4px">'+(noData?'—':o.cls)+'</div></div>'
+    +'<span class="badge '+o.clsColor+'" style="font-size:13px;padding:8px 16px;margin-top:4px">'+o.cls+'</span></div>';
+
+  html+='<div class="prog-wrap"><div class="prog-label"><span>Oncogenic evidence score</span><span>'+o.vscore+' / '+maxScore+'</span></div>'
+    +'<div class="prog-bar"><div class="prog-fill" style="width:'+pct+'%;background:var(--red600)"></div></div></div>';
+
+  if(o.codes.length===0) html+='<div class="alert alert-warning">Insufficient data for VICC criteria scoring. Complete the bioinformatics fields (COSMIC, functional data, gnomAD, ClinVar, in-silico) for classification.</div>';
+
+  html+='<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:10px">Applied VICC criteria</div>';
+  o.codes.forEach(function(c){
+    var isBen=c.strength==='benign';
+    var sClass=isBen?'st-benign':c.strength==='very strong'?'st-verystrong':c.strength==='strong'?'st-strong':c.strength==='moderate'?'st-moderate':'st-supporting';
+    html+='<div class="ev-row"><span class="ev-code">'+c.code+'</span><span class="ev-label" style="'+(isBen?'color:var(--green600)':'')+'">'+c.label+'</span><span class="strength-tag '+sClass+'">'+c.strength+'</span></div>';
+  });
+  html+='</div>';
+
+  html+='<div class="card"><div class="card-title">VICC 2022 classification thresholds</div><ul class="criteria-list">'
+    +'<li><span class="badge badge-oncogenic" style="margin-right:8px;min-width:120px;text-align:center">Oncogenic</span><span style="color:var(--text2)">≥1 very strong OR ≥2 strong OR evidence-weighted score ≥ 8</span></li>'
+    +'<li><span class="badge badge-likely-onco" style="margin-right:8px;min-width:120px;text-align:center">Likely oncogenic</span><span style="color:var(--text2)">1 strong + ≥1 moderate OR ≥2 moderate (score 5–7)</span></li>'
+    +'<li><span class="badge badge-vus" style="margin-right:8px;min-width:120px;text-align:center">VUS</span><span style="color:var(--text2)">Insufficient or conflicting evidence (score 1–4 or mixed)</span></li>'
+    +'<li><span class="badge badge-likely-ben" style="margin-right:8px;min-width:120px;text-align:center">Likely benign</span><span style="color:var(--text2)">≥2 benign supporting criteria</span></li>'
+    +'<li><span class="badge badge-benign" style="margin-right:8px;min-width:120px;text-align:center">Benign</span><span style="color:var(--text2)">≥1 benign strong OR ≥2 benign moderate criteria</span></li>'
+    +'</ul></div>';
+
+  document.getElementById('onco-result').innerHTML=html;
+}
+
+function renderWHO(){
+  var w=getWHO();
+  var noData=!S.gene&&!S.dx;
+  var html='';
+
+  html+='<div class="card"><div class="card-title">WHO 2022 classification correlation</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
+    +'<span style="font-size:15px;font-weight:600">'+(S.dx||'No diagnosis selected')+'</span>'
+    +(S.gene?'<span class="badge '+(w.isDef?'badge-tier1':'badge-tier3')+'">'+S.gene+(w.isDef?' — defining':'— co-mutation')+'</span>':'')
+    +'</div>';
+
+  if(w.entries.length===0) html+='<div class="alert alert-info">Enter gene and diagnosis to see WHO 2022 context and guidance.</div>';
+  w.entries.forEach(function(e){html+='<div class="alert alert-'+e.type+'">'+e.msg+'</div>';});
+
+  if(S.dx&&w.relGenes.length>0){
+    html+='<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin:14px 0 8px">WHO 2022 defining / recurrent genes for this entity</div><div>';
+    w.relGenes.forEach(function(g){
+      html+='<span class="who-tag'+(g===S.gene?' defining':'')+'">'+g+'</span>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+
+  // ELN 2022
+  html+='<div class="card"><div class="card-title">ELN 2022 risk stratification</div>';
+  if(S.dx&&S.dx.indexOf('AML')>-1&&w.elnRisk){
+    html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+      +'<span class="badge '+w.elnColor+'" style="font-size:13px;padding:7px 16px">'+w.elnRisk+'</span></div>'
+      +'<div style="font-size:13px;color:var(--text2)">'+w.elnDetail+'</div>';
+  } else if(S.dx&&S.dx.indexOf('AML')===-1){
+    html+='<div style="font-size:13px;color:var(--text2)">ELN 2022 risk stratification applies to AML. Select an AML diagnosis to view risk category.</div>';
+  } else {
+    html+='<div style="font-size:13px;color:var(--text2)">Select a diagnosis and gene to view ELN 2022 risk stratification.</div>';
+  }
+  html+='</div>';
+
+  // NCCN summary
+  html+='<div class="card"><div class="card-title">NCCN hematology — key guideline notes</div><div style="font-size:13px;color:var(--text2);line-height:1.7">';
+  if(S.dx&&S.dx.indexOf('AML')>-1) html+='<p><strong style="color:var(--text)">AML:</strong> NCCN recommends molecular profiling at diagnosis for treatment planning. FLT3 and IDH1/2 testing mandatory before initiating therapy. TP53 biallelic should be documented. HMA/venetoclax combinations for unfit patients.</p>';
+  if(S.dx&&(S.dx.indexOf('MDS')>-1||S.dx.indexOf('MDS/AML')>-1)) html+='<p><strong style="color:var(--text)">MDS:</strong> NCCN IPSS-R/IPSS-M risk scoring incorporates molecular data. SF3B1 mutations may qualify for luspatercept (anemia / ring sideroblast-associated). TP53 mutations associated with hypomethylating agent sensitivity.</p>';
+  if(S.dx&&S.dx.indexOf('CLL')>-1) html+='<p><strong style="color:var(--text)">CLL:</strong> NCCN requires del17p/TP53 mutation testing before therapy; IGHV mutation status; del11q. First-line ibrutinib, acalabrutinib, or venetoclax/obinutuzumab based on fitness and risk factors.</p>';
+  if(S.dx&&S.dx.indexOf('CML')>-1) html+='<p><strong style="color:var(--text)">CML:</strong> NCCN recommends quantitative BCR-ABL1 IS monitoring every 3 months. ABL1 kinase domain mutation testing at resistance or suboptimal response. TKI choice based on risk score and comorbidities.</p>';
+  if(S.dx&&(S.dx.indexOf('ET')>-1||S.dx.indexOf('PV')>-1||S.dx.indexOf('PMF')>-1)) html+='<p><strong style="color:var(--text)">MPN:</strong> JAK2/CALR/MPL driver mutation status defines WHO 2022 MPN entities and risk. DIPSS Plus score for PMF. Ruxolitinib for high-risk MPN/MF. Ropeginterferon for PV.</p>';
+  if(!S.dx) html+='<p>Select a diagnosis to see NCCN guideline guidance.</p>';
+  html+='</div></div>';
+
+  document.getElementById('who-result').innerHTML=html;
+}
+
+function renderReport(){
+  var a=classifyAMP(); var o=classifyOnco(); var w=getWHO();
+  var noData=!S.gene&&!S.dx;
+  var html='';
+
+  var gene=S.gene||'[GENE]';
+  var variant=(S.hgvsp||S.hgvsc||S.vtype||'[VARIANT]');
+  var dx=S.dx||'[DIAGNOSIS]';
+  var spec=S.spec||'[SPECIMEN]';
+  var acc=S.accession?'Accession: '+S.accession+' · ':'';
+
+  html+='<div class="card">'
+    +'<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px">'
+    +'<div><div class="card-title">'+acc+'Structured report</div>'
+    +'<div style="font-size:20px;font-weight:600">'+gene+' '+variant+'</div>'
+    +'<div style="font-size:13px;color:var(--text2);margin-top:4px">'+dx+' &nbsp;·&nbsp; '+spec+(S.timepoint?' &nbsp;·&nbsp; '+S.timepoint:'')+'</div></div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;margin-top:4px">'
+    +'<span class="badge '+a.color+'">Tier '+a.tier+'</span>'
+    +'<span class="badge '+o.clsColor+'">'+o.cls+'</span>'
+    +(w.elnRisk?'<span class="badge '+w.elnColor+'">ELN: '+w.elnRisk+'</span>':'')
+    +'</div></div>';
+
+  html+='<div class="grid2">'
+    +'<div class="info-item"><div class="lbl">AMP/ASCO/CAP tier</div><div class="val">Tier '+a.tier+'</div></div>'
+    +'<div class="info-item"><div class="lbl">Oncogenicity (VICC 2022)</div><div class="val">'+o.cls+'</div></div>'
+    +'<div class="info-item"><div class="lbl">VAF</div><div class="val">'+(S.vaf?S.vaf+'%':'—')+'</div></div>'
+    +'<div class="info-item"><div class="lbl">Read depth</div><div class="val">'+(S.depth?S.depth+'×':'—')+'</div></div>'
+    +'<div class="info-item"><div class="lbl">Germline excluded</div><div class="val">'+(S.germline||'Not assessed')+'</div></div>'
+    +'<div class="info-item"><div class="lbl">gnomAD AF</div><div class="val">'+(S.gnomad||'Absent')+'</div></div>'
+    +'</div></div>';
+
+  // Report language
+  html+='<div class="card"><div class="card-title">Interpretive report language</div><div class="report-text">';
+  html+='<p>A ';
+  if(a.tier==='I') html+='<strong>Tier I (strong clinical significance)</strong>';
+  else if(a.tier==='II') html+='<strong>Tier II (potential clinical significance)</strong>';
+  else if(a.tier==='III') html+='<strong>Tier III (variant of uncertain significance)</strong>';
+  else html+='<strong>Tier IV (likely benign)</strong>';
+  html+=' somatic variant, classified as <strong>'+o.cls+'</strong> by ClinGen/CGC/VICC 2022 criteria, was identified in <strong>'+gene+'</strong> ('+variant+') at a variant allele fraction (VAF) of '+(S.vaf?S.vaf+'%':'[VAF]')+' (read depth: '+(S.depth?S.depth+'×':'[depth]')+') in '+(S.spec||'[specimen]')+' from a patient with <strong>'+dx+'</strong>.</p>';
+
+  if(S.gnomad===0||S.gnomad<0.00001) html+='<p>This variant is absent from population variant databases (gnomAD v4), supporting a somatic rather than common germline origin.</p>';
+  if(S.germline.indexOf('Excluded')>-1) html+='<p>Germline origin has been assessed and '+(S.germline.indexOf('normal')>-1?'excluded by comparison with matched normal tissue.':'excluded based on variant allele fraction and population data.')+'</p>';
+
+  if(a.tier==='I'){
+    html+='<p>This variant has strong established clinical significance in '+dx+' and is associated with FDA-approved targeted therapy. ';
+    if(S.gene==='FLT3') html+='The patient may be eligible for FLT3 inhibitor therapy (midostaurin in the frontline setting; gilteritinib or quizartinib in relapsed/refractory disease). FLT3-ITD allelic ratio should be documented (AR: '+(S.itd_ar||'[report AR]')+').';
+    else if(S.gene==='IDH1') html+='The patient may be eligible for ivosidenib (IDH1 inhibitor) in the R/R setting or in combination with azacitidine for newly diagnosed AML.';
+    else if(S.gene==='IDH2') html+='The patient may be eligible for enasidenib (IDH2 inhibitor) in the relapsed/refractory AML setting.';
+    else if(S.gene==='EZH2') html+='The patient may be eligible for tazemetostat (EZH2 inhibitor) for relapsed/refractory follicular lymphoma.';
+    else if(S.gene==='KIT') html+='The patient may be eligible for avapritinib for advanced systemic mastocytosis.';
+    html+='</p><p>Clinical correlation and multidisciplinary team review are recommended prior to initiation of targeted therapy.</p>';
+  } else if(a.tier==='II'){
+    html+='<p>This variant has potential clinical significance based on published literature and evidence in hematologic malignancies. Clinical correlation with diagnosis, prior therapy, and eligibility for clinical trials incorporating this biomarker is recommended.</p>';
+  } else if(a.tier==='III'){
+    html+='<p>This variant is of uncertain clinical significance based on currently available evidence. The biological and clinical impact cannot be determined at this time. Variant reclassification may occur as additional evidence accumulates in published literature and variant databases. Correlation with clinical and pathologic features is recommended.</p>';
+  } else {
+    html+='<p>This variant is classified as likely benign based on population frequency, published literature, and in-silico predictive data. It is unlikely to represent a pathogenic driver of the hematologic malignancy in this patient.</p>';
+  }
+
+  if(w.elnRisk&&S.dx.indexOf('AML')>-1) html+='<p>Based on ELN 2022 risk stratification, this variant is associated with <strong>'+w.elnRisk+'</strong> risk category in AML. '+w.elnDetail+'</p>';
+  if(S.notes) html+='<p><em>Clinical correlation notes:</em> '+S.notes+'</p>';
+  html+='<p style="font-size:12px;color:var(--text3)">This interpretation is based on data available at the time of analysis ('+(new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}))+') and may be subject to reclassification. Potential germline implications should be evaluated separately when clinically indicated. This report was generated using the Somatic Variant Curation Tool (Broad Hematologic Malignancy NGS Panel). All classifications should be reviewed and signed by a qualified molecular pathologist before clinical use.</p>';
+  html+='</div></div>';
+
+  // Therapeutic summary
+  html+='<div class="card"><div class="card-title">Therapeutic summary</div>';
+  if(a.hasFDA){
+    html+='<div class="alert alert-success">FDA-approved targeted therapy available for this variant in the selected diagnosis. Include in clinical report with drug name and indication.</div>';
+  } else {
+    html+='<div class="alert alert-warning">No FDA-approved targeted therapy identified for this specific variant–indication combination. Review current NCCN guidelines and ClinicalTrials.gov for applicable clinical trials.</div>';
+  }
+  html+='</div>';
+
+  document.getElementById('report-result').innerHTML=html;
+  if(!noData){
+    // Print button
+    document.getElementById('report-result').innerHTML+='<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">'
+      +'<button class="btn btn-sm" onclick="window.print()">Print / export PDF</button></div>';
+  }
+}
+
+function showPanel(id){
+  document.querySelectorAll('.nav-item').forEach(function(el){el.classList.remove('active');});
+  document.querySelectorAll('.panel').forEach(function(el){el.classList.remove('active');});
+  var panelEl=document.getElementById('panel-'+id);
+  if(panelEl) panelEl.classList.add('active');
+  var navBtns=document.querySelectorAll('.nav-item');
+  var panelMap={'input':0,'amp':1,'onco':2,'who':3,'report':4,'ref_aml':5,'ref_mds':6,'ref_lymph':7,'ref_mpn':8};
+  if(panelMap[id]!==undefined && navBtns[panelMap[id]]) navBtns[panelMap[id]].classList.add('active');
+  updateAll();
+  if(id==='amp') renderAMP();
+  else if(id==='onco') renderOnco();
+  else if(id==='who') renderWHO();
+  else if(id==='report') renderReport();
+  else if(id.indexOf('ref_')===0) renderRefTables();
+}
+
+updateAll();
+</script>
+</body>
+</html>
